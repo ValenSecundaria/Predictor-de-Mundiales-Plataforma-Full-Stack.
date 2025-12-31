@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from pathlib import Path
 
@@ -34,21 +35,17 @@ try:
         WORLDCUP_GROUPS_JSON_PATH = year_dir / "worldcup.groups.json"
         WORLDCUP_JSON_PATH = year_dir / "worldcup.json"
 
-        # Cargar y procesar datos de equipos
         worldcup_groups_data = load_worldcup_groups_data_from_json(WORLDCUP_GROUPS_JSON_PATH)
         for group in worldcup_groups_data.groups:
             for team in group.teams:
                 all_teams[team.code] = team
 
-        # Cargar y procesar datos de partidos
         worldcup_data = load_worldcup_data_from_json(WORLDCUP_JSON_PATH)
         all_matches.extend(flatten_and_transform_matches(worldcup_data, year=year))
 
     TEAMS_DATA = sorted(list(all_teams.values()), key=lambda x: x.name)
     MATCHES_DATA = all_matches
-    
-    # Inject data into predict router
-    # This is a temporary solution to avoid major refactoring
+
     predict_router.MATCHES_STORE = MATCHES_DATA
 
 except FileNotFoundError as e:
@@ -75,6 +72,14 @@ def obtener_estadisticas_por_equipo(team_code: str):
     return stats
 
 app = FastAPI(title="Plantilla Predictor - FastAPI")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():

@@ -160,7 +160,7 @@ npm run dev
 
 3️⃣ Probar el backend por separado (opcional)
 cd backend
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+python -m uvicorn app.main:app --reload --port 8000
 
 Flujo de datos:
 Usuario → Frontend (Next.js)
