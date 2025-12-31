@@ -9,6 +9,7 @@ from app.data.cleaning.match_cleaner import flatten_and_transform_matches, filte
 from app.analytics.stats_calculator import calculate_team_stats
 
 from app.api.routers import predict as predict_router
+from app.api.routers import matches as matches_router
 
 router = APIRouter(prefix="/api/v1", tags=["analisis"])
 
@@ -47,6 +48,7 @@ try:
     MATCHES_DATA = all_matches
 
     predict_router.MATCHES_STORE = MATCHES_DATA
+    matches_router.MATCHES_STORE = MATCHES_DATA
 
 except FileNotFoundError as e:
     raise RuntimeError(f"No se pudo iniciar la aplicación: Archivo de datos no encontrado. {e}")
@@ -90,3 +92,4 @@ def health(): return {"ok": True}
 
 app.include_router(router)
 app.include_router(predict_router.router)
+app.include_router(matches_router.router)

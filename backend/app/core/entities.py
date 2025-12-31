@@ -64,6 +64,9 @@ class ApiMatch(BaseModel):
     goals: List[ApiGoal]
     year: str
     competition: str
+    id: int
+    date: str
+    stage: str
 
 class TeamStats(BaseModel):
     """Modelo para las estadísticas de un equipo."""

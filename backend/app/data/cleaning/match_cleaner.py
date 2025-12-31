@@ -30,7 +30,10 @@ def flatten_and_transform_matches(world_cup_data: WorldCupData, year: str, compe
                 score_b=match_info.score2,
                 goals=[ApiGoal.model_validate(goal.model_dump()) for goal in all_goals],
                 year=year,
-                competition=competition
+                competition=competition,
+                id=match_info.num,
+                date=match_info.date,
+                stage=round_data.name
             )
             processed_matches.append(api_match)
 

@@ -13,6 +13,9 @@ export interface ApiMatch {
     goals: ApiGoal[];
     year: string;
     competition: string;
+    id: number;
+    date: string;
+    stage: string;
 }
 
 export interface TeamGroupInfo {
