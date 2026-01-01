@@ -114,3 +114,14 @@ class TeamTrendStats(BaseModel):
     """Estadísticas de un equipo en un año específico."""
     year: str
     stats: TeamStats
+
+class PlayerStats(BaseModel):
+    """Estadísticas agregadas de un jugador (extraído de eventos de gol)."""
+    name: str # ID natural por ahora
+    team_code: str
+    total_goals: int
+    matches_with_goal: int # Cantidad de partidos donde anotó
+    first_goal_year: str   # Año del primer gol registrado
+    last_goal_year: str    # Año del último gol registrado
+    years_played: List[str] # Años donde anotó (proxy de actividad)
+    goals_by_match: List[Dict[str, Any]] = [] # Detalle de goles: {matchId, minute, year}

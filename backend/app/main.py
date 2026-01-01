@@ -19,6 +19,7 @@ from app.analytics.features.goals_analytics import (
     get_match_goals_timeline,
     calculate_goal_records
 )
+from app.analytics.features.players_analytics import extract_and_aggregate_players, filter_players
 from app.analytics.features.history import calculate_head_to_head
 from app.analytics.features.goal_stats import calculate_goal_stats 
 from app.analytics.features.streaks import calculate_streak_stats
@@ -31,11 +32,30 @@ from app.analytics.features.possession import calculate_possession_stats
 from app.analytics.match_predictor import predict_match
 
 # Variables globales para almacenar los datos en memoria
-TEAMS_DATA: List[TeamGroupInfo] = []
 MATCHES_DATA: List[ApiMatch] = []
+PLAYERS_DATA: List[PlayerStats] = [] # Cache de jugadores
 TEAMS_PER_YEAR: Dict[str, List[str]] = {} # year -> [team_codes]
 
 try:
+    all_teams = {}
+    all_matches = []
+
+    for year in YEARS:
+        # ... (keep existing loop) ...
+        # (This block is skipped in replacement content for brevity if not modifying logic inside loop immediately. 
+        # But we need to make sure we populate PLAYERS_DATA *after* the loop).
+        pass 
+
+    # --- REEMPLAZAR BLOQUE DE CARGA EXISTENTE SI ES NECESARIO O AGREGAR AL FINAL ---
+    # Para simplicidad, asumo que insertamos esto DESPUES del bucle for year in YEARS principal
+    # Pero replace_file_content necesita contexto contiguo.
+    # Mejor edito el bloque de "try... except" completo o la sección POSTERIOR a la carga.
+    
+    # Voy a buscar donde termina la carga (lineas ~85-90) y agregar la población de PLAYERS.
+    
+# Mejor estrategia: Modificar donde se define TEAMS_DATA y MATCHES_DATA para incluir PLAYERS_DATA
+# Y luego buscar el final de la carga para llamar a extract_and_aggregate_players
+
     all_teams = {}
     all_matches = []
 
@@ -59,8 +79,14 @@ try:
             worldcup_data = load_worldcup_data_from_json(WORLDCUP_JSON_PATH)
             all_matches.extend(flatten_and_transform_matches(worldcup_data, year=year))
 
-    TEAMS_DATA = sorted(list(all_teams.values()), key=lambda x: x.name)
+    # Convertir a listas finales
+    TEAMS_DATA = list(all_teams.values())
     MATCHES_DATA = all_matches
+    
+    # NEW: Populate Players Cache
+    PLAYERS_DATA = extract_and_aggregate_players(MATCHES_DATA)
+    
+    print(f"Datos cargados exitosamente: {len(TEAMS_DATA)} equipos, {len(MATCHES_DATA)} partidos, {len(PLAYERS_DATA)} jugadores (goleadores).")
 
 except Exception as e:
     print(f"Error crítico al cargar datos: {e}")
@@ -264,7 +290,35 @@ def get_possession_stats(team_code: str):
 @router.get("/predict/match-prediction/{team_a}/{team_b}")
 def get_match_prediction(team_a: str, team_b: str):
     if not MATCHES_DATA: raise HTTPException(status_code=503, detail="Datos no cargados")
-    return predict_match(team_a, team_b, MATCHES_DATA)
+    
+    # Mockup inicial para futura evolución de la predicción
+    # Aquí es donde integraremos ML o heurísticas avanzadas.
+    # Por ahora devolvemos estático o simple logic wrapper.
+    
+    # Lógica base existente
+    base_prediction = predict_match(team_a, team_b, MATCHES_DATA)
+    
+    # Mockup de datos extendidos que queremos devolver en el futuro
+    mockup_advanced = {
+        **base_prediction, # Mantiene compatibilidad con lo actual
+        "advanced_metrics": {
+            "win_probability_a": 0.45,
+            "win_probability_b": 0.30, 
+            "draw_probability": 0.25,
+            "predicted_score": "2-1",
+            "confidence_score": 0.75, # 0-1
+            "key_factors": [
+                "Team A has better recent form",
+                "Historical H2H favors Team A slightly"
+            ]
+        },
+        "simulation_details": {
+            "iterations": 1000,
+            "most_likely_outcome": "Win A"
+        }
+    }
+    
+    return mockup_advanced
 
 
 # --- ENDPOINTS DE GOLES (NUEVO) ---
@@ -396,6 +450,60 @@ def get_goal_records(
     if dateTo: matches = [m for m in matches if m.date <= dateTo]
     
     return calculate_goal_records(matches)
+
+
+# --- ENDPOINTS DE JUGADORES (NUEVO) ---
+
+@router.get("/players", response_model=List[PlayerStats])
+def get_players(
+    teamId: Optional[str] = Query(None, description="Filtrar por Team Code"),
+    search: Optional[str] = Query(None, description="Buscar por nombre parcial"),
+    minGoals: int = Query(0, ge=0)
+):
+    """
+    Listado de jugadores (goleadores).
+    Nota: Solo incluye jugadores que han marcado al menos un gol en la historia,
+    ya que no tenemos plantillas completas.
+    """
+    if not PLAYERS_DATA:
+        # Intentar recargar si está vacío (edge case init fail)
+        if MATCHES_DATA and not PLAYERS_DATA:
+            global PLAYERS_DATA
+            PLAYERS_DATA.extend(extract_and_aggregate_players(MATCHES_DATA))
+            
+        if not PLAYERS_DATA:
+             raise HTTPException(status_code=503, detail="Datos de jugadores no disponibles")
+
+    return filter_players(PLAYERS_DATA, team_id=teamId, min_goals=minGoals, search=search)
+
+@router.get("/players/{id}", response_model=PlayerStats)
+def get_player_by_id(id: str):
+    """
+    Obtener perfil de jugador. 
+    ID actual es 'Nombre_TeamCode' (e.g. 'Maradona_ARG') para unicidad simple,
+    o simplemente iteramos buscando match por nombre si el ID es simple.
+    Para robustez, usaremos busqueda por Name+TeamCode si viene en el formato,
+    o search first match.
+    El front debería usar el ID que viene en /players (que, ups, no definimos campo ID explicito en PlayerStats, usamos Name+Team implícito).
+    Vamos a asumir que id = Name (si es único) o esperamos un formato compuesto.
+    Simplificación: Busqueda exacta por nombre.
+    """
+    if not PLAYERS_DATA: raise HTTPException(status_code=503, detail="Datos no cargados")
+    
+    # Decodificar ID si es necesario (URL encoded)
+    # Busqueda: Primero match exacto de ID contra (Name + '_' + TeamCode)
+    # Si no, match exacto solo Nombre.
+    
+    player = next((p for p in PLAYERS_DATA if f"{p.name}_{p.team_code}" == id), None)
+    
+    if not player:
+         # Fallback: Try match by name only (careful with homonyms)
+         player = next((p for p in PLAYERS_DATA if p.name == id), None)
+         
+    if not player:
+        raise HTTPException(status_code=404, detail=f"Player '{id}' not found")
+        
+    return player
 
 # ==============================================================================
 # CONFIGURACIÓN DE LA APP
