@@ -51,6 +51,7 @@ class ApiGoal(BaseModel):
     """Modelo simplificado de un gol para la API."""
     player: str = Field(..., alias="name")  # Mapea 'name' del JSON a 'player' en la API
     minute: int
+    team_code: Optional[str] = None # Added for timeline reconstruction
 
 class ApiMatch(BaseModel):
     """Modelo de partido procesado y limpio para la API."""
@@ -60,6 +61,8 @@ class ApiMatch(BaseModel):
     team_b_code: str
     score_a: int
     score_b: int
+    
+    global_id: str # Unique ID: {year}-{id}
 
     goals: List[ApiGoal]
     year: str
@@ -94,4 +97,20 @@ class GroupInfo(BaseModel):
 class WorldCupGroupData(BaseModel):
     """El objeto raíz que contiene todos los datos de los grupos del mundial."""
     name: str
-    groups: List[GroupInfo]
+
+class RivalStats(BaseModel):
+    """Estadísticas contra un rival específico."""
+    opponent_code: str
+    opponent_name: str
+    matches: int
+    wins: int
+    draws: int
+    losses: int
+    goals_for: int
+    goals_against: int
+    win_percentage: float
+
+class TeamTrendStats(BaseModel):
+    """Estadísticas de un equipo en un año específico."""
+    year: str
+    stats: TeamStats

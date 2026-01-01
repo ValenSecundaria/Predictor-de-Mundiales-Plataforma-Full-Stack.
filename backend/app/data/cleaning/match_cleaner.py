@@ -28,10 +28,15 @@ def flatten_and_transform_matches(world_cup_data: WorldCupData, year: str, compe
                 team_b_code=match_info.team2.code,
                 score_a=match_info.score1,
                 score_b=match_info.score2,
-                goals=[ApiGoal.model_validate(goal.model_dump()) for goal in all_goals],
+                goals=[
+                    ApiGoal(name=g.name, minute=g.minute, team_code=match_info.team1.code) for g in match_info.goals1
+                ] + [
+                    ApiGoal(name=g.name, minute=g.minute, team_code=match_info.team2.code) for g in match_info.goals2
+                ],
                 year=year,
                 competition=competition,
                 id=match_info.num,
+                global_id=f"{year}-{match_info.num}",
                 date=match_info.date,
                 stage=round_data.name
             )

@@ -43,20 +43,11 @@ def get_matches(
         tB = teamB.lower()
         filtered_matches = [m for m in filtered_matches if tB in m.team_b.lower() or tB in m.team_b_code.lower()]
 
-    if dateFrom or dateTo:
-        try:
-            # Helper to parse dates strictly if needed, but simple string comparison works for YYYY-MM-DD
-            # However, the source format might vary. Assuming standard ISO or consistent format from cleaner.
-            # Based on inspection, dates are strings. Let's try flexible parsing or string comparison if format matches.
-            # Ideally data should be normalized to YYYY-MM-DD.
-            pass
-        except ValueError:
-            pass # Ignore invalid dates for now or raise error
-        
-        if dateFrom:
-             filtered_matches = [m for m in filtered_matches if m.date >= dateFrom]
-        if dateTo:
-             filtered_matches = [m for m in filtered_matches if m.date <= dateTo]
+    if dateFrom:
+        filtered_matches = [m for m in filtered_matches if m.date >= dateFrom]
+    
+    if dateTo:
+        filtered_matches = [m for m in filtered_matches if m.date <= dateTo]
 
 
     # --- Sorting ---
@@ -82,8 +73,23 @@ def get_matches(
         }
     }
 
+@router.get("/{id}", response_model=ApiMatch)
+def get_match_by_global_id(id: str):
+    """
+    Get a specific match by its Global ID (Format: Year-MatchNum, e.g., '1990-1').
+    """
+    if not MATCHES_STORE:
+        raise HTTPException(status_code=503, detail="Data not loaded yet")
+
+    match = next((m for m in MATCHES_STORE if m.global_id == id), None)
+    
+    if not match:
+        raise HTTPException(status_code=404, detail=f"Match with ID {id} not found")
+        
+    return match
+
 @router.get("/{year}/{match_id}", response_model=ApiMatch)
-def get_match_by_id(year: str, match_id: int):
+def get_match_by_year_and_id(year: str, match_id: int):
     """
     Get a specific match by its Year and ID (Match Number).
     """
